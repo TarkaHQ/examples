@@ -12,6 +12,7 @@
 		Upload,
 		X
 	} from '@lucide/svelte';
+	import { convertAudioToWav } from '$lib/audio';
 	import { apiRequest, getErrorMessage } from '$lib/client-api';
 	import type { VoiceRecord } from '$lib/types';
 	import Recorder from './Recorder.svelte';
@@ -51,9 +52,10 @@
 		creating = true;
 		errorMessage = '';
 		try {
+			const preparedSample = await convertAudioToWav(sample);
 			const data = new FormData();
 			data.set('name', name);
-			data.set('sample', sample, sample.name);
+			data.set('sample', preparedSample, preparedSample.name);
 			data.set('consent_signed_by', signedBy);
 			data.set('consent_date', consentDate);
 			data.set('consent_confirmed', String(confirmed));
@@ -232,7 +234,7 @@
 				<div>
 					<span class="section-kicker">New custom voice</span>
 					<h2>Bring a voice to Boli.</h2>
-					<p>A little clean audio is all Tarka needs.</p>
+					<p>A short, clean recording is enough — no transcript required.</p>
 				</div>
 				<button type="button" onclick={closeForm} aria-label="Close"><X size={19} /></button>
 			</header>
