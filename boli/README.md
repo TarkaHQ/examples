@@ -85,4 +85,12 @@ npm run test:e2e
 npm run build
 ```
 
-`adapter-auto` is used while the deployment target is undecided. Choose the matching SvelteKit adapter before production deployment.
+## Cloudflare Pages
+
+Boli uses SvelteKit's Cloudflare adapter. Configure the Pages project with:
+
+- Root directory: `boli`
+- Build command: `npm run build`
+- Build output directory: `.svelte-kit/cloudflare`
+
+The output directory is also declared in `wrangler.jsonc`, so do not configure `boli/public` as the Pages output. Add `TARKA_API_KEY` as an encrypted environment variable for both production and preview deployments. `TARKA_API_BASE_URL` and `PUBLIC_POCKETBASE_URL` may be omitted to use the defaults shown above.
