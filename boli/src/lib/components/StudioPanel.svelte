@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { apiRequest, getErrorMessage } from '$lib/client-api';
+	import { getErrorMessage, streamApiRequest } from '$lib/client-api';
 	import type { GenerationRecord, VoiceRecord } from '$lib/types';
 	import {
 		AudioLines,
@@ -91,6 +91,7 @@
 	let language = $state('en');
 	let instructions = $state('');
 	let generating = $state(false);
+	let progressMessage = $state('');
 	let errorMessage = $state('');
 	let latest = $state<GenerationRecord | null>(null);
 	let selectedVoice = $derived(allVoices.find((voice) => voice.id === selectedId) || builtIns[0]);
@@ -110,27 +111,34 @@
 			return;
 		}
 		generating = true;
+		progressMessage = 'Starting…';
+		latest = null;
 		try {
-			const record = await apiRequest<GenerationRecord>('/api/speech', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					input,
-					model: selectedVoice.model,
-					voice: selectedVoice.voice,
-					voice_name: selectedVoice.name,
-					response_format: format,
-					speed,
-					language,
-					instructions
-				})
-			});
+			const record = await streamApiRequest<GenerationRecord>(
+				'/api/speech',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						input,
+						model: selectedVoice.model,
+						voice: selectedVoice.voice,
+						voice_name: selectedVoice.name,
+						response_format: format,
+						speed,
+						language,
+						instructions
+					})
+				},
+				(progress) => (progressMessage = progress.message)
+			);
 			latest = record;
 			await oncreated(record);
 		} catch (error) {
 			errorMessage = getErrorMessage(error);
 		} finally {
 			generating = false;
+			progressMessage = '';
 		}
 	}
 </script>
@@ -191,20 +199,19 @@
 				</div>
 				<textarea
 					bind:value={input}
-					maxlength="50000"
+					maxlength="4096"
 					aria-label="Text to turn into speech"
 					placeholder="Type or paste the words you want to hear…"></textarea>
 				<div class="composer-footer">
-					<span class="character-count">{input.length.toLocaleString()} / 50,000</span>
+					<span class="character-count">{input.length.toLocaleString()} / 4,096</span>
 					<button
 						class="generate-button"
 						type="button"
 						onclick={generate}
 						disabled={generating || !input.trim()}
 					>
-						{#if generating}<span class="spin"><LoaderCircle size={16} /></span> Creating voice…{:else}<Sparkles
-								size={16}
-							/> Generate audio{/if}
+						{#if generating}<span class="spin"><LoaderCircle size={16} /></span>
+							{progressMessage || 'Generating…'}{:else}<Sparkles size={16} /> Generate audio{/if}
 					</button>
 				</div>
 			</section>

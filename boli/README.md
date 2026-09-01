@@ -62,6 +62,8 @@ The setup script is idempotent. It creates missing collections, verifies existin
 
 The browser authenticates directly with PocketBase and sends its PocketBase token to Boli’s SvelteKit endpoints. Each endpoint refreshes the PocketBase session before proxying the request to Tarka. This keeps the shared Tarka key on the server while retaining per-user storage and authorization.
 
+Speech generation returns an immediate server-sent event stream. Boli sends elapsed-time progress while Tarka is synthesizing, reports when audio is being received and saved, and finishes with the new PocketBase record. Keeping the HTTP response active allows long generations to run beyond Cloudflare's normal pre-response gateway window without exposing the Tarka API key.
+
 ```text
 Browser → Boli server route → Tarka voice API
    └──────── PocketBase auth, records, and protected files

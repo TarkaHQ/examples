@@ -105,3 +105,41 @@ test('shows only the languages supported by each voice and transcription model',
 	await expect(inputLanguage).toHaveValue('ar');
 	await expect(page.locator('.document-icon')).toHaveCSS('display', 'grid');
 });
+
+test('handles streamed speech progress and completion', async ({ page }) => {
+	await openAuthenticatedWorkspace(page);
+	const record = {
+		id: 'generation12345',
+		collectionId: 'generations',
+		collectionName: 'generations',
+		owner: testRecord.id,
+		input: 'Welcome to Boli',
+		model: 'kokoro',
+		voice_ref: 'af_heart',
+		voice_name: 'Heart',
+		response_format: 'mp3',
+		speed: 1,
+		language: 'en',
+		instructions: '',
+		content_type: 'audio/mpeg',
+		audio: 'heart.mp3',
+		created: '2026-09-01 00:00:00.000Z',
+		updated: '2026-09-01 00:00:00.000Z'
+	};
+	await page.route('**/api/speech', (route) =>
+		route.fulfill({
+			status: 200,
+			headers: { 'content-type': 'text/event-stream; charset=utf-8' },
+			body: [
+				'event: progress\ndata: {"phase":"generating","message":"Generating… 10s"}\n\n',
+				'event: progress\ndata: {"phase":"saving","message":"Saving…"}\n\n',
+				`event: complete\ndata: ${JSON.stringify(record)}\n\n`
+			].join('')
+		})
+	);
+
+	await page.getByRole('button', { name: 'Generate audio' }).click();
+	await expect(page.getByText('Your audio is ready')).toBeVisible();
+	await expect(page.getByText('Saved to your Boli library')).toBeVisible();
+	await expect(page.getByText('/ 4,096')).toBeVisible();
+});
