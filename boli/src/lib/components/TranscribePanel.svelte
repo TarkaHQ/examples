@@ -12,6 +12,7 @@
 		X
 	} from '@lucide/svelte';
 	import { apiRequest, getErrorMessage } from '$lib/client-api';
+	import { getModelLanguageSupport } from '$lib/model-languages';
 	import type { TranscriptionRecord } from '$lib/types';
 	import AudioPlayer from './AudioPlayer.svelte';
 	import Recorder from './Recorder.svelte';
@@ -35,7 +36,13 @@
 	let copied = $state(false);
 	let errorMessage = $state('');
 	let latest = $state<TranscriptionRecord | null>(null);
+	let languageSupport = $derived(getModelLanguageSupport('transcription', model));
 	let latestUrl = $derived(latest ? audioUrls[latest.id] || '' : '');
+
+	function selectModel(next: string) {
+		model = next;
+		language = getModelLanguageSupport('transcription', next)?.defaultValue || '';
+	}
 
 	function readableSize(bytes: number) {
 		if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -166,20 +173,26 @@
 				</div>
 				<div class="settings-grid">
 					<label
-						><span>Model</span><select bind:value={model}
+						><span>Model</span><select
+							value={model}
+							onchange={(event) => selectModel(event.currentTarget.value)}
 							><option value="whisper-large-v3">Whisper Large v3</option><option
 								value="whisper-nepali-medium">Whisper Nepali Medium</option
 							><option value="qwen3-asr">Qwen3 ASR</option></select
 						></label
 					>
-					<label
-						><span><Languages size={13} /> Language hint</span><select bind:value={language}
-							><option value="">Detect automatically</option><option value="ne">Nepali</option
-							><option value="en">English</option><option value="hi">Hindi</option><option
-								value="de">German</option
-							><option value="fr">French</option><option value="es">Spanish</option></select
-						></label
-					>
+					{#if languageSupport}
+						<label
+							><span
+								><Languages size={13} /> Language {#if languageSupport.selectable}<em>Optional</em
+									>{/if}</span
+							><select bind:value={language} disabled={!languageSupport.selectable}>
+								{#each languageSupport.options as option (option.value)}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select></label
+						>
+					{/if}
 				</div>
 				<label class="prompt-field"
 					><span>Names or vocabulary <em>Optional</em></span><input
@@ -488,6 +501,14 @@
 		font-size: 0.61rem;
 		font-weight: 670;
 	}
+	.settings-grid label > span em {
+		margin-left: auto;
+		color: var(--muted);
+		font-family: var(--font-mono);
+		font-size: 0.51rem;
+		font-style: normal;
+		font-weight: 500;
+	}
 	.transcription-settings select,
 	.transcription-settings input {
 		width: 100%;
@@ -553,11 +574,13 @@
 		padding-bottom: 14px;
 		border-bottom: 1px solid var(--line-soft);
 	}
-	.document-icon {
+	.transcript-head .document-icon {
 		display: grid;
 		width: 34px;
 		height: 34px;
+		flex: 0 0 auto;
 		place-items: center;
+		margin-top: 0;
 		border-radius: 9px;
 		background: var(--surface-2);
 		color: #647c89;

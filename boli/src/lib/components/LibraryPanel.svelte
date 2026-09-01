@@ -22,7 +22,7 @@
 				id: record.id,
 				type: 'generation',
 				title: record.voice_name || record.model,
-				subtitle: `${record.model} · ${record.response_format.toUpperCase()}`,
+				subtitle: `${record.model}${record.language ? ` · ${record.language.toUpperCase()}` : ''} · ${record.response_format.toUpperCase()}`,
 				created: record.created,
 				audioUrl: audioUrls[record.id] || '',
 				text: record.input,
@@ -315,14 +315,16 @@
 	}
 	.activity-text {
 		display: -webkit-box;
+		max-width: 100ch;
 		overflow: hidden;
 		margin: 9px 0 10px;
 		color: var(--ink-soft);
 		font-size: 0.69rem;
 		line-height: 1.55;
+		white-space: pre-wrap;
 		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		line-clamp: 2;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
 	}
 	.activity-meta {
 		display: flex;

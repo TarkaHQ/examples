@@ -141,6 +141,7 @@ const definitions = [
 			text('voice_ref', { required: true, max: 500 }),
 			text('voice_name', { max: 160 }),
 			text('response_format', { required: true, max: 16 }),
+			text('language', { max: 16 }),
 			{
 				name: 'speed',
 				type: 'number',
@@ -190,6 +191,8 @@ const definitions = [
 	}
 ];
 
+const safeAdditions = new Set(['generations.language']);
+
 await pb.collection('_superusers').authWithPassword(email, password);
 
 const existing = await pb.collections.getFullList();
@@ -199,11 +202,13 @@ for (const definition of definitions) {
 	const current = existingByName.get(definition.name);
 	if (current) {
 		const problems = [];
+		const additions = [];
 		const actualFields = new Map(current.fields.map((field) => [field.name, field]));
 		for (const expected of definition.fields) {
 			const actual = actualFields.get(expected.name);
 			if (!actual) {
-				problems.push(`missing field ${expected.name}`);
+				if (safeAdditions.has(`${definition.name}.${expected.name}`)) additions.push(expected);
+				else problems.push(`missing field ${expected.name}`);
 				continue;
 			}
 			if (actual.type !== expected.type) {
@@ -224,7 +229,14 @@ for (const definition of definitions) {
 				`${definition.name} already exists but failed verification: ${problems.join('; ')}. Review it manually before changing production data.`
 			);
 		}
-		console.log(`Verified existing collection: ${definition.name}`);
+		if (additions.length) {
+			await pb.collections.update(current.id, { fields: [...current.fields, ...additions] });
+			console.log(
+				`Updated collection ${definition.name}: added ${additions.map((field) => field.name).join(', ')}`
+			);
+		} else {
+			console.log(`Verified existing collection: ${definition.name}`);
+		}
 		continue;
 	}
 

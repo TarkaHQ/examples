@@ -1,5 +1,10 @@
 import { requireUser } from '$lib/server/auth';
 import { safeFilename, tarkaFetch } from '$lib/server/tarka';
+import {
+	getModelLanguageOption,
+	getModelLanguageSupport,
+	normalizeReportedLanguage
+} from '$lib/model-languages';
 import { error, json } from '@sveltejs/kit';
 
 const transcriptionModels = new Set(['whisper-large-v3', 'whisper-nepali-medium', 'qwen3-asr']);
@@ -9,19 +14,30 @@ export async function POST({ request }) {
 	const incoming = await request.formData();
 	const file = incoming.get('file');
 	const model = String(incoming.get('model') || 'whisper-large-v3');
-	const language = String(incoming.get('language') || '').trim();
+	const requestedLanguage = String(incoming.get('language') || '')
+		.trim()
+		.toLowerCase();
 	const prompt = String(incoming.get('prompt') || '').trim();
+	const languageSupport = getModelLanguageSupport('transcription', model);
+	const language = requestedLanguage || languageSupport?.defaultValue || '';
+	const languageOption = languageSupport
+		? getModelLanguageOption('transcription', model, language)
+		: undefined;
 
 	if (!(file instanceof File) || file.size === 0) throw error(400, 'Choose an audio file first.');
 	if (file.size > 100 * 1024 * 1024) throw error(400, 'Audio files must be 100 MB or smaller.');
 	if (!transcriptionModels.has(model)) throw error(400, 'Choose a supported transcription model.');
+	if (language.length > 16 || (languageSupport && !languageOption)) {
+		throw error(400, `Choose a language supported by ${model}.`);
+	}
 
 	const upstream = new FormData();
 	upstream.set('file', file, file.name);
 	upstream.set('model', model);
 	upstream.set('response_format', 'json');
 	upstream.set('temperature', '0');
-	if (language) upstream.set('language', language);
+	if (languageOption?.apiValue) upstream.set('language', languageOption.apiValue);
+	else if (!languageSupport && language) upstream.set('language', language);
 	if (prompt) upstream.set('prompt', prompt);
 
 	const response = await tarkaFetch('/audio/transcriptions', { method: 'POST', body: upstream });
@@ -37,7 +53,10 @@ export async function POST({ request }) {
 	data.set('owner', user.id);
 	data.set('filename', safeFilename(file.name));
 	data.set('model', model);
-	data.set('language', result.language || language);
+	data.set(
+		'language',
+		normalizeReportedLanguage('transcription', model, result.language || '') || language
+	);
 	data.set('prompt', prompt);
 	data.set('text', result.text);
 	data.set('task', result.task || 'transcribe');

@@ -1,5 +1,6 @@
 import { requireUser } from '$lib/server/auth';
 import { audioContentType, safeFilename, tarkaFetch } from '$lib/server/tarka';
+import { getModelLanguageOption, getModelLanguageSupport } from '$lib/model-languages';
 import { error, json } from '@sveltejs/kit';
 
 const formats = new Set(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm']);
@@ -13,11 +14,21 @@ export async function POST({ request }) {
 	const voiceName = typeof body.voice_name === 'string' ? body.voice_name : '';
 	const format = typeof body.response_format === 'string' ? body.response_format : 'mp3';
 	const instructions = typeof body.instructions === 'string' ? body.instructions.trim() : '';
+	const requestedLanguage =
+		typeof body.language === 'string' ? body.language.trim().toLowerCase() : '';
 	const speed = Number(body.speed ?? 1);
+	const languageSupport = getModelLanguageSupport('speech', model);
+	const language = requestedLanguage || languageSupport?.defaultValue || '';
+	const languageOption = languageSupport
+		? getModelLanguageOption('speech', model, language)
+		: undefined;
 
 	if (!input || input.length > 50_000) throw error(400, 'Enter between 1 and 50,000 characters.');
 	if (!model || !voice) throw error(400, 'Choose a model and voice.');
 	if (!formats.has(format)) throw error(400, 'Choose a supported audio format.');
+	if (language.length > 16 || (languageSupport && !languageOption)) {
+		throw error(400, `Choose a language supported by ${model}.`);
+	}
 	if (!Number.isFinite(speed) || speed < 0.25 || speed > 4) {
 		throw error(400, 'Speed must be between 0.25 and 4.');
 	}
@@ -30,6 +41,11 @@ export async function POST({ request }) {
 		speed
 	};
 	if (instructions) payload.instructions = instructions;
+	if (languageSupport?.forward && languageOption?.apiValue) {
+		payload.language = languageOption.apiValue;
+	} else if (!languageSupport && language) {
+		payload.language = language;
+	}
 
 	const response = await tarkaFetch('/audio/speech', {
 		method: 'POST',
@@ -48,6 +64,7 @@ export async function POST({ request }) {
 	data.set('voice_name', voiceName);
 	data.set('response_format', format);
 	data.set('speed', String(speed));
+	data.set('language', language);
 	data.set('instructions', instructions);
 	data.set('content_type', contentType);
 	data.set(

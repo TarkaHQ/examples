@@ -6,12 +6,14 @@
 		ChevronDown,
 		CirclePlus,
 		Gauge,
+		Languages,
 		LoaderCircle,
 		SlidersHorizontal,
 		Sparkles,
 		Volume2
 	} from '@lucide/svelte';
 	import AudioPlayer from './AudioPlayer.svelte';
+	import { getModelLanguageSupport } from '$lib/model-languages';
 
 	let {
 		voices,
@@ -75,7 +77,7 @@
 			description: voice.status === 'ready' ? 'Your cloned voice' : `Clone ${voice.status}`,
 			model: voice.model,
 			voice: voice.tarka_voice_id,
-			language: 'CUSTOM',
+			language: 'MULTI',
 			tone: ['green', 'lilac', 'rose'][index % 3],
 			custom: true,
 			ready: voice.status === 'ready'
@@ -86,16 +88,19 @@
 	let input = $state('Welcome to Boli — your private voice studio, powered by Tarka.');
 	let speed = $state(1);
 	let format = $state('mp3');
+	let language = $state('en');
 	let instructions = $state('');
 	let generating = $state(false);
 	let errorMessage = $state('');
 	let latest = $state<GenerationRecord | null>(null);
 	let selectedVoice = $derived(allVoices.find((voice) => voice.id === selectedId) || builtIns[0]);
+	let languageSupport = $derived(getModelLanguageSupport('speech', selectedVoice.model));
 	let latestUrl = $derived(latest ? audioUrls[latest.id] || '' : '');
 
 	function selectVoice(voice: VoiceOption) {
 		if (voice.custom && !voice.ready) return;
 		selectedId = voice.id;
+		language = getModelLanguageSupport('speech', voice.model)?.defaultValue || '';
 	}
 
 	async function generate() {
@@ -116,6 +121,7 @@
 					voice_name: selectedVoice.name,
 					response_format: format,
 					speed,
+					language,
 					instructions
 				})
 			});
@@ -243,6 +249,23 @@
 					><ChevronDown size={14} />
 				</div>
 			</label>
+			{#if languageSupport}
+				<label class="control-label">
+					<span
+						><Languages size={13} /> Output language {#if languageSupport.selectable}<em
+								>Optional</em
+							>{/if}</span
+					>
+					<div class="select-wrap">
+						<select bind:value={language} disabled={!languageSupport.selectable}>
+							{#each languageSupport.options as option (option.value)}
+								<option value={option.value}>{option.label}</option>
+							{/each}
+						</select>
+						<ChevronDown size={14} />
+					</div>
+				</label>
+			{/if}
 			<label class="control-label">
 				<span><Gauge size={13} /> Speed <em>{speed.toFixed(2)}×</em></span>
 				<input class="speed-range" bind:value={speed} type="range" min="0.5" max="2" step="0.05" />

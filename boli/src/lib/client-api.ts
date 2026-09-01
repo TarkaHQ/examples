@@ -17,7 +17,11 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 		} catch {
 			// The fallback below is more useful than a JSON parsing error.
 		}
-		throw new Error(body.message || body.error?.message || `Request failed (${response.status})`);
+		const fallback =
+			response.status === 524
+				? 'Tarka took longer than the gateway timeout. The result may still finish; check your library before retrying.'
+				: `Request failed (${response.status})`;
+		throw new Error(body.message || body.error?.message || fallback);
 	}
 
 	if (response.status === 204) return undefined as T;

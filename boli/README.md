@@ -6,6 +6,7 @@ It includes:
 
 - Text to speech with Kokoro, Piper, Nepali Parler TTS, and consent-backed Qwen3 voice clones
 - Speech to text with Whisper Large v3, Whisper Nepali Medium, and Qwen3 ASR
+- Optional, model-aware language selection for multilingual speech and transcription models
 - Browser microphone recording and audio uploads
 - Consent-backed voice creation, status refresh, use, and deletion
 - A searchable PocketBase library containing source audio, transcripts, and generated speech

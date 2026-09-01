@@ -23,6 +23,7 @@ export interface GenerationRecord extends RecordModel {
 	voice_name?: string;
 	response_format: string;
 	speed: number;
+	language?: string;
 	instructions?: string;
 	audio: string;
 	content_type?: string;
