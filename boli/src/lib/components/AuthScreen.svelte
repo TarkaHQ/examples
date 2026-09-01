@@ -45,10 +45,10 @@
 		</header>
 		<div class="story-copy">
 			<span class="eyebrow">Your private voice workspace</span>
-			<h1>Every voice.<br />One beautiful box.</h1>
+			<h1>Listen. Create.<br />Sound like you.</h1>
 			<p>
-				Transcribe moments, shape speech, and keep consented voices close — powered by Tarka in
-				Nepal.
+				Transcribe audio, create natural speech, and build voices with clear consent — powered by
+				Tarka in Nepal.
 			</p>
 		</div>
 		<div class="sound-stage" aria-hidden="true">

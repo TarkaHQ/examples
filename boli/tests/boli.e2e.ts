@@ -4,6 +4,9 @@ test('shows the Boli sign-in experience', async ({ page }) => {
 	await page.goto('/');
 
 	await expect(page).toHaveTitle(/Boli/);
+	await expect(
+		page.getByRole('heading', { name: 'Listen. Create. Sound like you.' })
+	).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Sign in to Boli' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Enter Boli' })).toBeVisible();
 });
