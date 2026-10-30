@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+*.sqlite3
+.pytest_cache/
+.ruff_cache/
+secrets*.json
+media/
+recordings/
