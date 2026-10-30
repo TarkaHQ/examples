@@ -27,6 +27,8 @@ For a fast Python development loop: `cd backend && uv sync`, export `DJANGO_SECR
 
 The GitHub workflow publishes public OCI images tagged by source commit. `compose.yaml` is the production definition; `compose.local.yaml` adds local builds and ports and is not submitted to Tarka.
 
+`deploy/release.json` records the tested image digests, source revision, successful CI run, and intended deployment target. These are published build artifacts; the manifest does not indicate a live deployment. Secret values are deliberately absent.
+
 1. Publish images, resolve both image digests, and set `KURA_API_IMAGE` and `KURA_BOT_IMAGE` to `ghcr.io/tarkahq/kura-{api,bot}@sha256:...`.
 2. Create a Tarka bucket; use its returned **physical** `s3_bucket_name` and region. The Kura bucket in the Tarka organization is `tarka-c9683788937a-kura-recordings`, region `eu-central-1`.
 3. Create a secret handoff for host `kura`. The owner runs `python3 scripts/prepare-secrets.py`, then uploads the resulting private `.env.deploy` file through the authenticated handoff page. The file is ignored by Git and mode 0600. The coding agent receives only metadata.
@@ -41,6 +43,8 @@ Update the existing host by name through the Control API with new pinned images 
 ## Android
 
 `cd app && flutter pub get && flutter build apk --debug` produces an installable development APK. A signed distribution build requires your own Android signing key; the repository does not contain one. Set the deployment URL at sign-in or supply `--dart-define=KURA_URL=https://your-host.tarka.site` when building.
+
+For a smaller development APK on current ARM64 phones, use `flutter build apk --release --target-platform android-arm64`. This optimizes the app but still uses the local debug signing key; it is not a Play Store release.
 
 The native microphone foreground service keeps the recording independent of the Flutter view, rotates 30-second WAV segments, holds a bounded wake lock, and repairs saved WAV headers after an interrupted process. Recordings remain in app-private storage until every chunk and finalization is acknowledged. Pending recordings retry while the app is open and signed in. Android's “force stop” ends recording; completed audio remains recoverable on reopening. The web build supports file uploads, bot control, playback, exports, and notes; microphone capture is Android-only.
 

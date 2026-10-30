@@ -13,3 +13,4 @@ media/
 recordings/
 backend/web/
 backend/staticfiles/
+dist/
