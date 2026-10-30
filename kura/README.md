@@ -8,14 +8,14 @@ A small meeting notebook built on Tarka. A Google Meet participant records remot
 
 `Meet worker → Vexa joining module + Chromium + PulseAudio/FFmpeg → API → Tarka Object Storage`
 
-The four services are `api`, `worker`, `meet-bot`, and `postgres`. `api` also serves the Flutter web bundle. Recordings use a private Tarka S3 bucket. The hosted worker calls `http://tarka/v1` through the platform's managed gateway; Tarka credentials never enter the Flutter app. Inference aliases are `whisper-large-v3` and `qwen3.8-flash-next`. Hosting, storage, network, and model billing are separate; this example does not change Tarka model pricing.
+The four services are `api`, `worker`, `meet-bot`, and `postgres`. `api` also serves the Flutter web bundle. The base Compose file uses a private Tarka S3 bucket. The European deployment adds `compose.volume.yaml` to store recordings on a persistent 10 GiB Tarka volume shared by the API and worker, while [the platform S3 routing issue](https://github.com/TarkaHQ/infrastructure/issues/657) is resolved. The hosted worker calls `http://tarka/v1` through the platform's managed gateway; Tarka credentials never enter the Flutter app. Inference aliases are `whisper-large-v3` and `qwen3.8-flash-next`. Hosting, storage, network, and model billing are separate; this example does not change Tarka model pricing.
 
 The Vexa Google Meet join module is vendored at an exact upstream commit with its Apache-2.0 license and modification notice in `bot/vendor/vexa/UPSTREAM.md`. The bot uses one browser session at a time, needs host admission, and exits on denial, removal, inactivity, or a two-hour limit. It never handles CAPTCHA or consent prompts automatically. Screenshots are off unless `KURA_BOT_DIAGNOSTICS=1` is explicitly enabled.
 
 ## Local Compose
 
 1. Create a private Tarka Object Storage bucket and bucket-scoped access credentials.
-2. Copy `.env.example` to `.env`; set independent random secrets, initial owner credentials, physical S3 bucket name, and S3 credentials. Use a URL-safe database password. Set a Tarka API key with the necessary model access for local development.
+2. Copy `.env.example` to `.env`; set independent random secrets, initial owner credentials, physical S3 bucket name, and S3 credentials. Set a Tarka API key with the necessary model access for local development. The database password is passed separately using `PGPASSWORD`.
 3. Run `docker compose -f compose.yaml -f compose.local.yaml up --build` (or `docker-compose` on installations with the standalone CLI).
 4. Open `http://localhost:8000` and sign in with the configured owner email/password.
 
@@ -32,13 +32,13 @@ The GitHub workflow publishes public OCI images tagged by source commit. `compos
 1. Publish images, resolve both image digests, and set `KURA_API_IMAGE` and `KURA_BOT_IMAGE` to `ghcr.io/tarkahq/kura-{api,bot}@sha256:...`.
 2. Create a Tarka bucket; use its returned **physical** `s3_bucket_name` and region. The Kura bucket in the Tarka organization is `tarka-c9683788937a-kura-recordings`, region `eu-central-1`.
 3. Create a secret handoff for host `kura`. The owner runs `python3 scripts/prepare-secrets.py`, then uploads the resulting private `.env.deploy` file through the authenticated handoff page. The file is ignored by Git and mode 0600. The coding agent receives only metadata.
-4. Submit `compose.yaml` via `CreateAgentHost` in the intended organization with the uploaded bundle ID, `public_service=api`, `public_port=8000`, `tier=core`, and `runtime.primary_model_alias=qwen3.8-flash-next`. Set the two image variables, `S3_BUCKET`, and `S3_REGION`. Dry-run first and use the returned accepted quote for admission.
+4. For this European deployment, render `docker compose --env-file /dev/null -f compose.yaml -f compose.volume.yaml config --no-interpolate` (or `docker-compose`) and submit the resulting YAML via `CreateAgentHost` with the uploaded bundle ID, `public_service=api`, `public_port=8000`, `tier=core`, and `runtime.primary_model_alias=qwen3.8-flash-next`. The rendering must preserve secret placeholders. Set the two image variables, `S3_BUCKET`, and `S3_REGION`; the volume overlay explicitly disables S3 at runtime. Dry-run first and use the returned accepted quote for admission.
 5. Wait for readiness and a valid HTTPS route. This release explicitly targets `eu-1` for both the host and storage. Tarka must enable EU Agent Host placement for the target organization; other organizations retain the platform default. Use the actual URL returned by the Control API.
 6. Check `/healthz`, sign-in, upload/transcription, a host-admitted Meet recording, and Android screen-locked recording. Set the Android server address to the returned HTTPS URL.
 
 Tarka injects its outbound proxy environment. The bot uses the host-local browser proxy at `http://tarka-network-edge:3128` when that environment is present, with proxied WebRTC transport. Test real media connectivity in the selected location before treating Meet capture as operational.
 
-Update the existing host by name through the Control API with new pinned images and preserved secrets; keep its named volumes. To roll back, restore the prior image digests after verifying migration compatibility. Do not delete/recreate the host as an update mechanism. Back up PostgreSQL and the recording bucket independently.
+Update the existing host by name through the Control API with new pinned images and preserved secrets; keep its named volumes. To roll back, restore the prior image digests after verifying migration compatibility. Do not delete/recreate the host as an update mechanism. Back up PostgreSQL and the recording storage independently. The volume overlay retains recordings across pod restarts, but has a 10 GiB capacity and requires volume backups. Removing it after recordings exist requires copying and verifying every recording object into S3 before switching backends; do not simply remove the overlay.
 
 ## Android
 

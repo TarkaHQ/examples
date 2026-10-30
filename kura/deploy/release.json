@@ -5,6 +5,7 @@
     "KURA_API_IMAGE": "ghcr.io/tarkahq/kura-api@sha256:ce107f899256f6d235e29e25fa21d420229656cc2377f14c25019074315212ef",
     "KURA_BOT_IMAGE": "ghcr.io/tarkahq/kura-bot@sha256:50b94aba77e781dcb013048524fbd89329c993060ad126d64124ac19060174e6"
   },
+  "compose_files": ["compose.yaml", "compose.volume.yaml"],
   "deployment_target": {
     "org_id": "c9683788-937a-4d6d-a667-d58c2916b8dd",
     "name": "kura",
