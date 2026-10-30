@@ -93,7 +93,9 @@ class _KuraHomeState extends State<KuraHome> {
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (android) pollRecorder();
       if (++ticks % 5 == 0 && api != null && !busy) refresh();
-      if (ticks % 30 == 0 && api != null && !busy && drafts.isNotEmpty) { run(() => uploadDraft(drafts.first)); }
+      if (ticks % 30 == 0 && api != null && !busy && drafts.isNotEmpty) {
+        run(() => uploadDraft(drafts.first));
+      }
     });
     player.playerStateStream.listen((s) {
       if (mounted) {
@@ -328,11 +330,14 @@ class _KuraHomeState extends State<KuraHome> {
       await for (final part in file.xFile.openRead(offset, end)) {
         bytes.add(part);
       }
-      if (!uploaded.contains(seq)) { await api!.chunk(id, seq, bytes.takeBytes()); }
+      if (!uploaded.contains(seq)) {
+        await api!.chunk(id, seq, bytes.takeBytes());
+      }
       seq++;
     }
     await api!.post('meetings/$id/finish', {'chunks': seq});
-    pendingFile = null; pendingFileId = null;
+    pendingFile = null;
+    pendingFileId = null;
     await refresh();
     setState(() => notice = 'Audio uploaded. Your notes are on their way.');
   }
@@ -731,7 +736,9 @@ class _KuraHomeState extends State<KuraHome> {
                 OutlinedButton.icon(
                   onPressed: busy ? null : () => run(uploadFile),
                   icon: const Icon(Icons.upload_file),
-                  label: Text(pendingFile != null ? 'Resume upload' : 'Upload audio'),
+                  label: Text(
+                    pendingFile != null ? 'Resume upload' : 'Upload audio',
+                  ),
                 ),
               ],
             ),

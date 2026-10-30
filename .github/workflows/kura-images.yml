@@ -27,6 +27,7 @@ jobs:
           cache-from: type=gha,scope=kura-bot
           cache-to: type=gha,mode=max,scope=kura-bot
   api:
+    needs: checks
     if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
@@ -46,3 +47,29 @@ jobs:
           labels: org.opencontainers.image.source=https://github.com/TarkaHQ/examples
           cache-from: type=gha,scope=kura-api
           cache-to: type=gha,mode=max,scope=kura-api
+
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-bookworm
+        env:
+          POSTGRES_USER: kura
+          POSTGRES_PASSWORD: kura-ci-only
+          POSTGRES_DB: kura
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U kura" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: {version: '0.9.5', python-version: '3.12'}
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: uv run pytest -q
+        working-directory: kura/backend
+        env:
+          DJANGO_SECRET_KEY: ci-test-only-not-a-deployment-secret
+          DATABASE_URL: postgresql://kura:kura-ci-only@localhost:5432/kura
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm ci && npm run check && npm test
+        working-directory: kura/bot
