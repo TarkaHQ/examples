@@ -10,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:uuid/uuid.dart';
 import 'api.dart';
+import 'text_prompt.dart';
 
 const ink = Color(0xff183e36),
     paper = Color(0xfff7f5ee),
@@ -211,30 +212,10 @@ class _KuraHomeState extends State<KuraHome> {
   }
 
   Future<String?> ask(String title, String hint, {String initial = ''}) async {
-    final c = TextEditingController(text: initial);
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          decoration: InputDecoration(hintText: hint),
-          onSubmitted: (v) => Navigator.pop(context, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, c.text),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
+      builder: (_) => TextPrompt(title: title, hint: hint, initial: initial),
     );
-    c.dispose();
     return result?.trim();
   }
 

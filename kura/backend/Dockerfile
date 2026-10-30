@@ -7,6 +7,7 @@ WORKDIR /src
 COPY app/pubspec.* ./
 RUN flutter pub get
 COPY app/ ./
+RUN flutter analyze && flutter test
 RUN flutter build web --release --no-web-resources-cdn
 
 FROM python:3.12-slim

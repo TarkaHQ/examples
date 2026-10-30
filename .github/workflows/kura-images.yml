@@ -3,12 +3,13 @@ on:
   workflow_dispatch:
   push:
     branches: [main, codex/kura]
-    paths: ['kura/bot/**', 'kura/backend/**', 'kura/app/**', '.github/workflows/kura-images.yml']
+    paths: ['kura/bot/**', 'kura/backend/**', 'kura/app/**', 'kura/compose*.yaml', '.github/workflows/kura-images.yml']
 permissions:
   contents: read
   packages: write
 jobs:
   bot:
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

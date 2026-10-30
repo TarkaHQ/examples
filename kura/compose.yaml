@@ -81,6 +81,7 @@ services:
         limits: {cpus: '2', memory: 3G}
   postgres:
     image: postgres:17.6-bookworm
+    user: "999:999"
     environment:
       POSTGRES_USER: kura
       POSTGRES_DB: kura
