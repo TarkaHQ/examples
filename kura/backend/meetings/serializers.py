@@ -42,6 +42,7 @@ class MeetingSerializer(serializers.ModelSerializer):
             "segments",
             "notes",
             "duration",
+            "partial",
             "error",
             "expected_chunks",
         ]

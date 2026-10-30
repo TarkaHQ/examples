@@ -816,6 +816,13 @@ class _KuraHomeState extends State<KuraHome> {
         title(m['title'], size: 30),
         const SizedBox(height: 12),
         pill(m['status']),
+        if (m['partial'] == true)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text(
+              'This recording was interrupted. These notes cover the recovered audio.',
+            ),
+          ),
         const SizedBox(height: 20),
         if (['queued', 'joining', 'waiting', 'recording'].contains(m['status']))
           box(

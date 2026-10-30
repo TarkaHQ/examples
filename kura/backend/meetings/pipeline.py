@@ -1,3 +1,4 @@
+import uuid
 import json, subprocess, tempfile, threading
 from pathlib import Path
 from datetime import timedelta
@@ -32,8 +33,10 @@ def duration(path):
     return float(json.loads(out.stdout)["format"]["duration"])
 
 
-def still_active(id):
-    if not Meeting.objects.filter(pk=id, status="processing").exists():
+def still_active(m):
+    if not Meeting.objects.filter(
+        pk=m.id, status="processing", lease_token=m.lease_token
+    ).exists():
         raise RuntimeError("Job was cancelled.")
 
 
@@ -90,7 +93,7 @@ def process(m):
         d = Path(tmp)
         parts = []
         for c in m.chunks.order_by("seq"):
-            still_active(m.id)
+            still_active(m)
             p = d / f"input-{c.seq:06d}"
             storage.download(c.key, p)
             parts.append(p)
@@ -128,12 +131,12 @@ def process(m):
         seconds = duration(audio)
         if not 0 < seconds <= 7205:
             raise ValueError("Recordings must be no longer than two hours.")
-        still_active(m.id)
+        still_active(m)
         key = f"{m.id}/audio.m4a"
         storage.upload(key, audio)
-        Meeting.objects.filter(pk=m.id, status="processing").update(
-            audio_key=key, duration=seconds
-        )
+        Meeting.objects.filter(
+            pk=m.id, status="processing", lease_token=m.lease_token
+        ).update(audio_key=key, duration=seconds)
         command(
             "ffmpeg",
             "-nostdin",
@@ -156,7 +159,7 @@ def process(m):
         segments = []
         texts = []
         for index, p in enumerate(sorted(d.glob("stt-*.wav"))):
-            still_active(m.id)
+            still_active(m)
             cache = f"{m.id}/transcription/{index:04d}.json"
             cached = storage.get_optional(cache)
             result = json.loads(cached) if cached is not None else None
@@ -191,9 +194,9 @@ def process(m):
                         "text": s["text"],
                     }
                 )
-            Meeting.objects.filter(pk=m.id, status="processing").update(
-                transcript="\n".join(texts), segments=segments
-            )
+            Meeting.objects.filter(
+                pk=m.id, status="processing", lease_token=m.lease_token
+            ).update(transcript="\n".join(texts), segments=segments)
         transcript = "\n".join(texts)
         if not transcript.strip():
             notes = {
@@ -215,17 +218,17 @@ def process(m):
                     "Combine these chronological meeting notes without adding facts:\n"
                     + json.dumps(partial, ensure_ascii=False),
                 )
-        still_active(m.id)
-        Meeting.objects.filter(pk=m.id, status="processing").update(
-            status="ready", notes=notes, error=""
-        )
+        still_active(m)
+        Meeting.objects.filter(
+            pk=m.id, status="processing", lease_token=m.lease_token
+        ).update(status="ready", notes=notes, error="")
 
 
 def tick():
     now = timezone.now()
     Meeting.objects.filter(
         status="processing", heartbeat__lt=now - timedelta(minutes=2)
-    ).update(status="pending")
+    ).update(status="pending", lease_token=None)
     Meeting.objects.filter(
         status__in=["joining", "waiting", "recording"],
         heartbeat__lt=now - timedelta(minutes=2),
@@ -249,6 +252,7 @@ def tick():
         if not m:
             return False
         m.status = "processing"
+        m.lease_token = uuid.uuid4()
         m.attempts += 1
         m.heartbeat = now
         m.save()
@@ -257,9 +261,9 @@ def tick():
     def beat():
         while not done.wait(20):
             close_old_connections()
-            Meeting.objects.filter(pk=m.id, status="processing").update(
-                heartbeat=timezone.now()
-            )
+            Meeting.objects.filter(
+                pk=m.id, status="processing", lease_token=m.lease_token
+            ).update(heartbeat=timezone.now())
 
     thread = threading.Thread(target=beat, daemon=True)
     thread.start()
@@ -276,7 +280,9 @@ def tick():
             ),
             flush=True,
         )
-        Meeting.objects.filter(pk=m.id, status="processing").update(
+        Meeting.objects.filter(
+            pk=m.id, status="processing", lease_token=m.lease_token
+        ).update(
             status="pending" if m.attempts < 3 else "failed",
             available_at=timezone.now() + timedelta(seconds=30 * m.attempts),
             error="Processing could not finish. Your recording is saved; retry when the model is available.",

@@ -274,6 +274,17 @@ def internal(request, action, id=None, seq=None):
             m.save()
             return Response({"id": str(m.id), "meet_url": m.meet_url})
     m = get_object_or_404(Meeting, pk=id)
+    if action == "recover":
+        if m.source != "meet":
+            raise PermissionDenied()
+        if m.status == "deleting" or m.expected_chunks is not None:
+            return Response({"settled": True})
+        m.status = "uploading"
+        m.partial = True
+        m.save(update_fields=["status", "partial", "updated_at"])
+        return Response(
+            {"uploaded_chunks": list(m.chunks.values_list("seq", flat=True))}
+        )
     if action == "heartbeat":
         m.heartbeat = timezone.now()
         m.save(update_fields=["heartbeat"])
@@ -290,7 +301,13 @@ def internal(request, action, id=None, seq=None):
     elif action == "state":
         status = request.data.get("status")
         # Terminal processing and deletion states cannot be overwritten by late callbacks.
-        if m.status in ["queued", "joining", "waiting", "recording"] and status in [
+        if m.status in [
+            "queued",
+            "joining",
+            "waiting",
+            "recording",
+            "uploading",
+        ] and status in [
             "joining",
             "waiting",
             "recording",

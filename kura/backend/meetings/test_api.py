@@ -211,3 +211,49 @@ def test_pipeline_produces_audio_timestamps_notes(client):
     from urllib.parse import urlsplit
 
     assert client.get(urlsplit(detail["audio_url"]).path).status_code == 404
+
+
+@pytest.mark.django_db
+def test_capture_recovery_keeps_id_and_marks_partial(client):
+    id = new(
+        client, source="meet", meet_url="https://meet.google.com/abc-defg-hij"
+    ).data["id"]
+    client.credentials(HTTP_AUTHORIZATION="Bearer test-bot-credential")
+    client.post("/api/internal/claim")
+    client.post(
+        f"/api/internal/meetings/{id}/state", {"status": "failed"}, format="json"
+    )
+    recovered = client.post(f"/api/internal/meetings/{id}/recover")
+    assert recovered.status_code == 200
+    m = Meeting.objects.get(pk=id)
+    assert m.partial and m.status == "uploading"
+    assert (
+        client.post(
+            f"/api/internal/meetings/{id}/chunks/0",
+            wav(),
+            content_type="application/octet-stream",
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/api/internal/meetings/{id}/finish", {"chunks": 1}, format="json"
+        ).status_code
+        == 200
+    )
+    assert client.post(f"/api/internal/meetings/{id}/recover").data["settled"]
+
+
+@pytest.mark.django_db
+def test_superseded_worker_cannot_process(client):
+    import uuid
+
+    id = new(client).data["id"]
+    m = Meeting.objects.get(pk=id)
+    m.status = "processing"
+    m.lease_token = uuid.uuid4()
+    m.save()
+    Chunk.objects.create(meeting=m, seq=0, key=f"{id}/chunk", sha256="x" * 64, size=1)
+    Meeting.objects.filter(pk=id).update(lease_token=uuid.uuid4())
+    with pytest.raises(RuntimeError, match="cancelled"):
+        process(m)
