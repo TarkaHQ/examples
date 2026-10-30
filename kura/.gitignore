@@ -11,3 +11,5 @@ __pycache__/
 secrets*.json
 media/
 recordings/
+backend/web/
+backend/staticfiles/

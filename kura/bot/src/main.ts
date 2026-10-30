@@ -23,7 +23,7 @@ async function api(path: string, data?: any, bytes?: Buffer): Promise<any> {
 async function run(job: any) {
  const id = job.id || 'probe'; const dir = join('/recordings',id);
  await mkdir(dir,{recursive:true}); await mkdir('/app/storage/screenshots',{recursive:true});
- let browser: any, recorder: any, done=false, uploaded = new Set<string>(), aloneSince=0;
+ let browser: any, recorder: any, done=false, deleteLocal=false, uploaded = new Set<string>(), aloneSince=0;
  const update=async(status:string,extra:any={})=>{state=status; console.log(JSON.stringify({event:'state',state})); if(base) await api(`meetings/${id}/state`,{status,...extra});};
  setHooks({onState: async(s)=>{if(s==='joining'||s==='awaiting_admission')await update(s==='awaiting_admission'?'waiting':s); if(s==='blocked'||s==='needs_human_help')throw new Error('Meet requires human attention.');}});
  const upload=async(final=false)=>{
@@ -42,7 +42,7 @@ async function run(job: any) {
   // Upstream screenshots can contain participant details. Keep them opt-in and private.
   if(process.env.KURA_BOT_DIAGNOSTICS!=='1') page.screenshot=async()=>Buffer.alloc(0);
   const config={platform:'google_meet',botName:'Kura · Meeting notes',uiInteractionMode:'humanized' as const,automaticLeave:{waitingRoomTimeout:180}};
-  const heartbeat=setInterval(()=>{if(base)api(`meetings/${id}/heartbeat`).then(r=>{if(r.stop)done=true;}).catch(()=>{done=true;});},10000);
+  const heartbeat=setInterval(()=>{if(base)api(`meetings/${id}/heartbeat`).then(r=>{if(r.stop)done=true;if(r.delete)deleteLocal=true;}).catch(()=>{done=true;});},10000);
   try {
    await update('joining');
    const abortWatch=setInterval(()=>{if(stopping||done)context.close().catch(()=>{});},1000);
@@ -66,7 +66,7 @@ async function run(job: any) {
   await update('captured');
   if(base)await rm(dir,{recursive:true,force:true});
  } catch(e:any){await update('failed',{error:'The bot could not finish this meeting. Check admission, network access, or try again.'}).catch(()=>{}); console.error(JSON.stringify({event:'bot_error',kind:e.name,message:String(e.message).replace(/https?:\/\/\S+/g,'[url]').slice(0,240)}));}
- finally{if(recorder)recorder.kill('SIGINT');if(browser)await browser.close().catch(()=>{});setHooks({});state='idle';}
+ finally{if(deleteLocal)await rm(dir,{recursive:true,force:true});if(recorder)recorder.kill('SIGINT');if(browser)await browser.close().catch(()=>{});setHooks({});state='idle';}
 }
 async function main(){
  if(process.env.KURA_PROBE_MEET_URL){await run({meet_url:process.env.KURA_PROBE_MEET_URL});return;}

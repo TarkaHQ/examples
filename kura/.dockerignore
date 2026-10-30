@@ -1,0 +1,11 @@
+**/.venv
+**/node_modules
+**/build
+**/.dart_tool
+**/.env*
+**/secrets*.json
+**/media
+**/__pycache__
+**/*.sqlite3
+**/.git
+app/android/.gradle
