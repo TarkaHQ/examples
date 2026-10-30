@@ -7,7 +7,7 @@
     <application
         android:label="Kura" android:allowBackup="false"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@drawable/kura_icon">
         <service android:name=".RecorderService" android:exported="false" android:foregroundServiceType="microphone" />
         <activity
             android:name=".MainActivity"
