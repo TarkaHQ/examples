@@ -20,7 +20,8 @@ x-tarka:
 
 x-backend-environment: &backend-environment
   DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-  DATABASE_URL: postgresql://kura:${POSTGRES_PASSWORD}@postgres:5432/kura
+  DATABASE_URL: postgresql://kura@postgres:5432/kura
+  PGPASSWORD: ${POSTGRES_PASSWORD}
   KURA_BOT_TOKEN: ${KURA_BOT_TOKEN}
   ALLOWED_HOSTS: ${ALLOWED_HOSTS:-.tarka.site,localhost,127.0.0.1,api}
   S3_BUCKET: ${S3_BUCKET}

@@ -69,7 +69,8 @@ jobs:
         working-directory: kura/backend
         env:
           DJANGO_SECRET_KEY: ci-test-only-not-a-deployment-secret
-          DATABASE_URL: postgresql://kura:kura-ci-only@localhost:5432/kura
+          DATABASE_URL: postgresql://kura@localhost:5432/kura
+          PGPASSWORD: kura-ci-only
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
       - run: npm ci && npm run check && npm test
