@@ -1,0 +1,19 @@
+# Persistent recording storage for hosts without a reachable S3 endpoint.
+# Render with the base Compose file and --no-interpolate before submitting
+# to Tarka; existing secret references must remain references.
+x-tarka:
+  volume_sizes:
+    meeting-data: 10Gi
+services:
+  api:
+    environment:
+      S3_BUCKET: ""
+      MEDIA_ROOT: /data/meetings
+    volumes: [meeting-data:/data]
+  worker:
+    environment:
+      S3_BUCKET: ""
+      MEDIA_ROOT: /data/meetings
+    volumes: [meeting-data:/data]
+volumes:
+  meeting-data:
