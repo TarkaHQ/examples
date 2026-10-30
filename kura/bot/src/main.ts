@@ -8,6 +8,8 @@ import { waitForGoogleMeetingAdmission, countRealParticipantTiles } from '../ven
 import { checkForGoogleRemoval } from '../vendor/vexa/googlemeet/removal';
 import { setHooks } from '../vendor/vexa/_host';
 import { meetUrl } from './url';
+import { publicJoinError } from '../vendor/vexa/googlemeet/join-failure';
+import { finishEmptySpool } from './empty-spool';
 const base = process.env.KURA_API_URL || '';
 const token = process.env.KURA_BOT_TOKEN || '';
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -65,7 +67,7 @@ async function run(job: any) {
   if(base)await api(`meetings/${id}/finish`,{chunks:uploaded.size});
   await update('captured');
   if(base)await rm(dir,{recursive:true,force:true});
- } catch(e:any){await update('failed',{error:'The bot could not finish this meeting. Check admission, network access, or try again.'}).catch(()=>{}); console.error(JSON.stringify({event:'bot_error',kind:e.name,message:String(e.message).replace(/https?:\/\/\S+/g,'[url]').slice(0,240)}));}
+ } catch(e:any){await update('failed',{error:publicJoinError(e)}).catch(()=>{}); console.error(JSON.stringify({event:'bot_error',kind:e.name,message:String(e.message).replace(/https?:\/\/\S+/g,'[url]').slice(0,240)}));}
  finally{if(recorder){recorder.kill('SIGINT');await new Promise(r=>setTimeout(r,1000));}if(deleteLocal)await rm(dir,{recursive:true,force:true});if(browser)await browser.close().catch(()=>{});setHooks({});state='idle';}
 }
 async function recoverSpool() {
@@ -74,10 +76,12 @@ async function recoverSpool() {
   if(!/^[a-f0-9-]{36}$/.test(id))continue;
   const dir=join('/recordings',id);
   try {
+   const files=(await readdir(dir)).filter(f=>/^\d{6}\.wav$/.test(f)).sort();
+   if(await finishEmptySpool(files,
+    ()=>api(`meetings/${id}/state`,{status:'failed',error:'The meeting stopped before audio could be captured.'}),
+    ()=>rm(dir,{recursive:true,force:true})))continue;
    const recovery=await api(`meetings/${id}/recover`);
    if(recovery.settled){await rm(dir,{recursive:true,force:true});continue;}
-   const files=(await readdir(dir)).filter(f=>/^\d{6}\.wav$/.test(f)).sort();
-   if(!files.length){await api(`meetings/${id}/state`,{status:'failed',error:'The meeting stopped before audio could be captured.'});await rm(dir,{recursive:true,force:true});continue;}
    const uploaded=new Set(recovery.uploaded_chunks);
    for(const f of files){
     const seq=Number(f.slice(0,6)); if(uploaded.has(seq))continue;

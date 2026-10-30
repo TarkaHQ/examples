@@ -214,6 +214,20 @@ def test_pipeline_produces_audio_timestamps_notes(client):
 
 
 @pytest.mark.django_db
+def test_empty_capture_callback_preserves_the_original_join_failure(client):
+    id = new(client, source="meet", meet_url="https://meet.google.com/abc-defg-hij").data["id"]
+    client.credentials(HTTP_AUTHORIZATION="Bearer test-bot-credential")
+    client.post("/api/internal/claim")
+    original = "Google refused this bot before admission."
+    endpoint = f"/api/internal/meetings/{id}/state"
+    client.post(endpoint, {"status": "failed", "error": original}, format="json")
+    client.post(endpoint, {"status": "failed", "error": "No audio captured."}, format="json")
+    m = Meeting.objects.get(pk=id)
+    assert m.status == "failed" and m.error == original
+    assert not m.partial
+
+
+@pytest.mark.django_db
 def test_capture_recovery_keeps_id_and_marks_partial(client):
     id = new(
         client, source="meet", meet_url="https://meet.google.com/abc-defg-hij"
