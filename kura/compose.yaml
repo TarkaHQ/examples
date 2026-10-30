@@ -1,0 +1,102 @@
+x-tarka:
+  title: Kura
+  description: Private meeting recordings and notes, powered by Tarka.
+  volume_sizes:
+    postgres-data: 5Gi
+    recordings: 2Gi
+  variables:
+    - {name: KURA_API_IMAGE, label: API image, required: true}
+    - {name: KURA_BOT_IMAGE, label: Meet bot image, required: true}
+    - {name: DJANGO_SECRET_KEY, label: App signing secret, secret: true, required: true}
+    - {name: POSTGRES_PASSWORD, label: Database password, secret: true, required: true}
+    - {name: KURA_BOT_TOKEN, label: Bot service token, secret: true, required: true}
+    - {name: KURA_ADMIN_PASSWORD, label: Initial owner password, secret: true, required: true}
+    - {name: KURA_ADMIN_EMAIL, label: Owner email, required: true}
+    - {name: AWS_ACCESS_KEY_ID, label: Storage access key, secret: true, required: true}
+    - {name: AWS_SECRET_ACCESS_KEY, label: Storage secret key, secret: true, required: true}
+    - {name: S3_BUCKET, label: Physical bucket name, required: true}
+    - {name: S3_REGION, label: Storage region, default: eu-central-1}
+    - {name: ALLOWED_HOSTS, label: Allowed HTTP hosts, default: '.tarka.site,localhost,127.0.0.1,api'}
+
+x-backend-environment: &backend-environment
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+  DATABASE_URL: postgresql://kura:${POSTGRES_PASSWORD}@postgres:5432/kura
+  KURA_BOT_TOKEN: ${KURA_BOT_TOKEN}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-.tarka.site,localhost,127.0.0.1,api}
+  S3_BUCKET: ${S3_BUCKET}
+  S3_ENDPOINT: https://storage.tarka.rest
+  S3_REGION: ${S3_REGION:-eu-central-1}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  TARKA_BASE_URL: http://tarka/v1
+  TARKA_STT_MODEL: whisper-large-v3
+  TARKA_SUMMARY_MODEL: qwen3.8-flash-next
+
+services:
+  api:
+    image: ${KURA_API_IMAGE}
+    environment:
+      <<: *backend-environment
+      KURA_ADMIN_EMAIL: ${KURA_ADMIN_EMAIL}
+      KURA_ADMIN_PASSWORD: ${KURA_ADMIN_PASSWORD}
+    expose: ['8000']
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/healthz")']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        reservations: {cpus: '0.125', memory: 256M}
+        limits: {cpus: '0.5', memory: 768M}
+  worker:
+    image: ${KURA_API_IMAGE}
+    command: [worker]
+    environment: *backend-environment
+    depends_on:
+      api: {condition: service_healthy}
+    deploy:
+      resources:
+        reservations: {cpus: '0.125', memory: 256M}
+        limits: {cpus: '0.5', memory: 1G}
+  meet-bot:
+    image: ${KURA_BOT_IMAGE}
+    environment:
+      KURA_API_URL: http://api:8000
+      KURA_BOT_TOKEN: ${KURA_BOT_TOKEN}
+    expose: ['8081']
+    volumes: [recordings:/recordings]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, 'fetch("http://127.0.0.1:8081").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        reservations: {cpus: '0.5', memory: 1G}
+        limits: {cpus: '2', memory: 3G}
+  postgres:
+    image: postgres:17.6-bookworm
+    user: "999:999"
+    environment:
+      POSTGRES_USER: kura
+      POSTGRES_DB: kura
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U kura -d kura]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        reservations: {cpus: '0.125', memory: 256M}
+        limits: {cpus: '0.5', memory: 512M}
+volumes:
+  postgres-data:
+  recordings:

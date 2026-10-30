@@ -1,0 +1,21 @@
+{
+  "source_revision": "11ae0fcd40b819080a7374c7faf4d1530e97355b",
+  "ci_run": "https://github.com/TarkaHQ/examples/actions/runs/41027691150",
+  "images": {
+    "KURA_API_IMAGE": "ghcr.io/tarkahq/kura-api@sha256:ce107f899256f6d235e29e25fa21d420229656cc2377f14c25019074315212ef",
+    "KURA_BOT_IMAGE": "ghcr.io/tarkahq/kura-bot@sha256:50b94aba77e781dcb013048524fbd89329c993060ad126d64124ac19060174e6"
+  },
+  "deployment_target": {
+    "org_id": "c9683788-937a-4d6d-a667-d58c2916b8dd",
+    "name": "kura",
+    "location": "us-1",
+    "tier": "core",
+    "public_service": "api",
+    "public_port": 8000,
+    "runtime": {"primary_model_alias": "qwen3.8-flash-next"}
+  },
+  "storage": {
+    "S3_BUCKET": "tarka-c9683788937a-kura-recordings",
+    "S3_REGION": "eu-central-1"
+  }
+}

@@ -1,0 +1,14 @@
+services:
+  api:
+    build: {context: ., dockerfile: backend/Dockerfile}
+    ports: ['127.0.0.1:8000:8000']
+    environment:
+      TARKA_BASE_URL: https://tarka.rest/v1
+      TARKA_API_KEY: ${TARKA_API_KEY}
+  worker:
+    build: {context: ., dockerfile: backend/Dockerfile}
+    environment:
+      TARKA_BASE_URL: https://tarka.rest/v1
+      TARKA_API_KEY: ${TARKA_API_KEY}
+  meet-bot:
+    build: ./bot

@@ -8,6 +8,7 @@ Each example focuses on a real product workflow rather than an isolated API call
 
 | App | What it demonstrates | Stack |
 | --- | --- | --- |
+| [Kura](./kura) | Google Meet bot, Android recorder, and private transcripts and meeting notes using Tarka inference, object storage, and Compose hosting | Flutter, Django, PostgreSQL, Chromium |
 | [Boli](./boli) | Speech-to-text, text-to-speech, and consent-backed voice cloning with Tarka's voice APIs | SvelteKit, PocketBase, Cloudflare Pages |
 | [Tarka Chat](./chat) | Streaming LLM chat and model selection through server-side Tarka endpoints | Next.js, React, TypeScript |
 
